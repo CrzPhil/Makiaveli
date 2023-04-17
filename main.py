@@ -1,5 +1,7 @@
 import random
+from copy import deepcopy
 import itertools
+
 
 class Card:
     values = list(range(1, 14))
@@ -63,7 +65,7 @@ class Player:
         pass
 
     def show_hand(self):
-        return self.__str__()
+        print(self.__str__())
 
     def remove_card_from_hand(self, card):
         """
@@ -120,7 +122,7 @@ class Floor:
         """
         Save the state before "casino". Can be restored if validation checks fail afterwards
         """
-        return (self.floor, self.modifications)
+        return deepcopy(self.floor), self.modifications.copy()
 
     def restore_floor(self, floor, modifications):
         """
@@ -148,7 +150,7 @@ class Floor:
         Play a new combination on the floor. Can be partial, since a card may be moved to it afterwards.
         """
         self.floor.append(combination)
-        self.modifications[len(self.floor)] = True
+        self.modifications[len(self.floor)-1] = True
 
     def move(self, source_combination: int, card: Card, destination_combination: int):
         """
@@ -229,6 +231,12 @@ class Floor:
             return False
         
         # Check if all combinations in the rest of the floor (excluding anchors) contain >=3 cards
+        #        print(f"Len floor: {len(self.floor)}")
+        #        print(f"Len modified_combinations: {len(modified_combinations)}")
+        #        print("Modified combos:")
+        #        print(modified_combinations)
+        #        print("Modification dict:")
+        #        print(self.modifications)
         if any(len(self.floor[combination_index]) < 3 for combination_index in modified_combinations):
             return False
 
@@ -297,6 +305,12 @@ class Game:
         return list(itertools.product(sub_actions, repeat=max_depth))
 
     def validate_and_apply_sub_action_sequence(self, player, sub_action_sequence):
+        """
+        Iterate through list of sub_actions and check whether they produce valid configurations.
+
+        Saves floor and player-hand state, restoring them afterwards if the play was invalid.
+        :return: boolean -> Whether floor is valid.
+        """
         # Save initial game state
         initial_floor, initial_modifications = self.floor.get_floor()
         initial_hand = player.hand.copy()
@@ -319,8 +333,9 @@ class Game:
         is_valid = self.floor.is_valid()
     
         # Restore initial game state
-        self.floor.restore_floor(initial_floor, initial_modifications)
-        player.hand = initial_hand
+        if not is_valid:
+            self.floor.restore_floor(initial_floor, initial_modifications)
+            player.hand = initial_hand
     
         return is_valid
 
