@@ -300,44 +300,93 @@ class Game:
 
     def generate_sub_action_sequences(self, sub_actions, max_depth=3):
         """
-        Create an array of sequences of sub_actionsself.
+        Create an array of sequences of sub_actions.
         """
-        return list(itertools.product(sub_actions, repeat=max_depth))
+        all_sequences = list(itertools.product(sub_actions, repeat=max_depth))
+        valid_sequences = []
+    
+        for sequence in all_sequences:
+            used_cards = set()
+            valid_sequence = True
+    
+            for action, *args in sequence:
+                if action == 'create_new_combination':
+                    combination = list(args[0])
+    
+                    # Check if any card in the combination is already used
+                    for card in combination:
+                        if card in used_cards:
+                            valid_sequence = False
+                            break
+    
+                    # If the sequence is still valid, update used cards
+                    if valid_sequence:
+                        used_cards.update(combination)
+                    else:
+                        break
+    
+                elif action == 'add_card_to_combination':
+                    card, _ = args
+    
+                    # Check if the card is already used
+                    if card in used_cards:
+                        valid_sequence = False
+                        break
+    
+                    # If the sequence is still valid, update used cards
+                    if valid_sequence:
+                        used_cards.add(card)
+                    else:
+                        break
+    
+            if valid_sequence:
+                valid_sequences.append(sequence)
+    
+        return valid_sequences
 
     def validate_and_apply_sub_action_sequence(self, player, sub_action_sequence):
         """
         Iterate through list of sub_actions and check whether they produce valid configurations.
-
+    
         Saves floor and player-hand state, restoring them afterwards if the play was invalid.
-        :return: boolean -> Whether floor is valid.
+        :return: tuple (is_valid, longest_valid_subsequence) -> Whether floor is valid and the longest valid subsequence of actions.
         """
-        # Save initial game state
-        initial_floor, initial_modifications = self.floor.get_floor()
-        initial_hand = player.hand.copy()
+        longest_valid_subsequence = []
     
-        for action, *args in sub_action_sequence:
-            if action == 'create_new_combination':
-                combination = list(args[0])
-                player.remove_cards_from_hand(combination)
-                self.floor.create_new_combination(combination)
+        for i in range(len(sub_action_sequence)):
+            for j in range(i, len(sub_action_sequence)):
+                current_subsequence = sub_action_sequence[i:j + 1]
     
-            elif action == 'add_card_to_combination':
-                card, combination_index = args
-                player.remove_card_from_hand(card)
-                self.floor.add_card_to_combination(card, combination_index)
+                # Save initial game state
+                initial_floor, initial_modifications = self.floor.get_floor()
+                initial_hand = player.hand.copy()
     
-            elif action == 'move':
-                source_combination, card, destination_combination = args
-                self.floor.move(source_combination, card, destination_combination)
+                for action, *args in current_subsequence:
+                    if action == 'create_new_combination':
+                        combination = list(args[0])
+                        player.remove_cards_from_hand(combination)
+                        self.floor.create_new_combination(combination)
     
-        is_valid = self.floor.is_valid()
+                    elif action == 'add_card_to_combination':
+                        card, combination_index = args
+                        player.remove_card_from_hand(card)
+                        self.floor.add_card_to_combination(card, combination_index)
     
-        # Restore initial game state
-        if not is_valid:
-            self.floor.restore_floor(initial_floor, initial_modifications)
-            player.hand = initial_hand
+                    elif action == 'move':
+                        source_combination, card, destination_combination = args
+                        self.floor.move(source_combination, card, destination_combination)
     
-        return is_valid
+                is_valid = self.floor.is_valid()
+    
+                # Restore initial game state
+                self.floor.restore_floor(initial_floor, initial_modifications)
+                player.hand = initial_hand
+    
+                if is_valid and len(current_subsequence) > len(longest_valid_subsequence):
+                    longest_valid_subsequence = current_subsequence
+    
+        return bool(longest_valid_subsequence), longest_valid_subsequence
+
 
     def end_turn(self):
         """
