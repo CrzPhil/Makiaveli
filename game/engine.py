@@ -86,24 +86,36 @@ def validate_play(
             rank, suit = key
             return False, f"Card {Card(rank, suit)} not in hand (or not enough copies)"
 
-    # Card conservation: old floor + active cross + cards_played == new floor
-    old_cards = Counter()
+    # Card conservation: old floor + incorporated cross + cards_played == new floor
+    # Cross cards that remain unincorporated (untouched singles) stay as cross,
+    # so we only count cross cards that actually appear in the new floor.
+    old_floor_cards = Counter()
     for group in gs.floor_groups:
         for card in group:
-            old_cards[(card.rank, card.suit)] += 1
-    for card in gs.cross:
-        if card is not None:
-            old_cards[(card.rank, card.suit)] += 1
-    for card in cards_played:
-        old_cards[(card.rank, card.suit)] += 1
+            old_floor_cards[(card.rank, card.suit)] += 1
 
     new_cards = Counter()
     for group in new_floor:
         for card in group:
             new_cards[(card.rank, card.suit)] += 1
 
-    if old_cards != new_cards:
-        return False, "Card conservation violated: floor cards don't match"
+    # What the new floor needs beyond old floor + cards_played must come from cross
+    from_cross = Counter(new_cards)
+    from_cross.subtract(old_floor_cards)
+    from_cross.subtract(played_counter)
+
+    # Verify no negative counts (can't create cards out of thin air)
+    for key, count in from_cross.items():
+        if count < 0:
+            rank, suit = key
+            return False, f"Card conservation violated: extra {Card(rank, suit)} unaccounted for"
+
+    # Verify what's needed from cross is actually available in active cross
+    cross_available = _card_counter([c for c in gs.cross if c is not None])
+    for key, count in from_cross.items():
+        if count > 0 and cross_available.get(key, 0) < count:
+            rank, suit = key
+            return False, f"Card conservation violated: {Card(rank, suit)} not available from cross"
 
     # All groups must be valid (3+ cards)
     for i, group in enumerate(new_floor):
