@@ -8,6 +8,43 @@ function cardDisplay(card) { return rankStr(card.rank) + SUIT_SYMBOLS[card.suit]
 function isRed(suit) { return suit === "H" || suit === "D"; }
 function cardCode(card) { return card.code; }
 
+// Suit ordering: alternating black/red (S, H, C, D)
+const SUIT_ORDER = { S: 0, H: 1, C: 2, D: 3 };
+
+function sortGroupForDisplay(cards) {
+  if (cards.length < 2) return cards;
+  const ranks = new Set(cards.map(c => c.rank));
+  if (ranks.size === 1) {
+    // Set (same rank) — alternate red/black
+    const blacks = cards.filter(c => !isRed(c.suit));
+    const reds = cards.filter(c => isRed(c.suit));
+    const result = [];
+    let bi = 0, ri = 0;
+    while (bi < blacks.length || ri < reds.length) {
+      if (bi < blacks.length) result.push(blacks[bi++]);
+      if (ri < reds.length) result.push(reds[ri++]);
+    }
+    return result;
+  }
+  // Run (same suit) or mixed — sort by rank, ace-high aware
+  const hasAce = cards.some(c => c.rank === 1);
+  const hasKing = cards.some(c => c.rank === 13);
+  const hasTwo = cards.some(c => c.rank === 2);
+  const aceHigh = hasAce && hasKing && !hasTwo;
+  return [...cards].sort((a, b) => {
+    const ra = aceHigh && a.rank === 1 ? 14 : a.rank;
+    const rb = aceHigh && b.rank === 1 ? 14 : b.rank;
+    return ra - rb;
+  });
+}
+
+function sortHand(cards) {
+  return [...cards].sort((a, b) => {
+    if (a.rank !== b.rank) return a.rank - b.rank;
+    return (SUIT_ORDER[a.suit] || 0) - (SUIT_ORDER[b.suit] || 0);
+  });
+}
+
 /* ── State ───────────────────────────────────────────────────────────── */
 
 let gameId = null;
@@ -148,7 +185,7 @@ function renderTable() {
       label.className = "floor-group-label";
       label.textContent = `#${gi}`;
       div.appendChild(label);
-      group.forEach(card => {
+      sortGroupForDisplay(group).forEach(card => {
         const el = makeCardEl(card);
         if (playMode) {
           el.addEventListener("click", () => selectFloorCard(gi, card));
@@ -165,10 +202,7 @@ function renderTable() {
 
 function renderHand() {
   $handCards.innerHTML = "";
-  const sorted = [...hand].sort((a, b) => {
-    if (a.suit !== b.suit) return a.suit < b.suit ? -1 : 1;
-    return a.rank - b.rank;
-  });
+  const sorted = sortHand(hand);
   sorted.forEach(card => {
     const isSelected = selectedCards.some(s => s.code === card.code && s._idx === card._idx);
     const el = makeCardEl(card, isSelected ? "selected" : "");
@@ -251,7 +285,32 @@ function renderStaging() {
     label.textContent = isCrossGroup ? "\u2693" : `#${gi}`;
     div.appendChild(label);
 
-    group.forEach((card, ci) => {
+    // Sort for display but keep original indices for selection tracking
+    const indexed = group.map((card, ci) => ({ card, ci }));
+    const ranks = new Set(group.map(c => c.rank));
+    if (ranks.size === 1) {
+      // Set — alternate red/black
+      const blacks = indexed.filter(e => !isRed(e.card.suit));
+      const reds = indexed.filter(e => isRed(e.card.suit));
+      indexed.length = 0;
+      let bi = 0, ri = 0;
+      while (bi < blacks.length || ri < reds.length) {
+        if (bi < blacks.length) indexed.push(blacks[bi++]);
+        if (ri < reds.length) indexed.push(reds[ri++]);
+      }
+    } else {
+      // Run — sort by rank, ace-high aware
+      const hasAce = group.some(c => c.rank === 1);
+      const hasKing = group.some(c => c.rank === 13);
+      const hasTwo = group.some(c => c.rank === 2);
+      const aceHigh = hasAce && hasKing && !hasTwo;
+      indexed.sort((a, b) => {
+        const ra = aceHigh && a.card.rank === 1 ? 14 : a.card.rank;
+        const rb = aceHigh && b.card.rank === 1 ? 14 : b.card.rank;
+        return ra - rb;
+      });
+    }
+    indexed.forEach(({ card, ci }) => {
       const isCrossCard = card._crossSlot !== undefined;
       const isSelected = selectedCards.some(s => s._stagingGroup === gi && s._stagingIdx === ci);
       const extraCls = isCrossCard ? "cross-card" : (isSelected ? "selected" : "");
