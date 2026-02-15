@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Makiaveli</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #1a1a2e;
+      --surface: #16213e;
+      --surface2: #0f3460;
+      --text: #e0e0e0;
+      --text-dim: #8892a4;
+      --accent: #e94560;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    h1 {
+      font-size: 2.4rem;
+      letter-spacing: 0.06em;
+      color: var(--accent);
+      margin-bottom: 0.4rem;
+    }
+
+    .subtitle {
+      color: var(--text-dim);
+      font-size: 0.95rem;
+      margin-bottom: 2.5rem;
+    }
+
+    .cards {
+      display: flex;
+      gap: 1.2rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .card-link {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0.8rem;
+      width: 220px;
+      padding: 2rem 1.5rem;
+      background: var(--surface);
+      border: 2px solid var(--surface2);
+      border-radius: 12px;
+      text-decoration: none;
+      color: var(--text);
+      transition: all 0.2s;
+    }
+    .card-link:hover {
+      border-color: var(--accent);
+      transform: translateY(-4px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    }
+
+    .card-icon {
+      font-size: 2.4rem;
+      line-height: 1;
+    }
+
+    .card-title {
+      font-size: 1.15rem;
+      font-weight: 700;
+    }
+
+    .card-desc {
+      font-size: 0.82rem;
+      color: var(--text-dim);
+      text-align: center;
+      line-height: 1.4;
+    }
+  </style>
+</head>
+<body>
+  <h1>Makiaveli</h1>
+  <p class="subtitle">The Italian card game of wits and rearrangement</p>
+
+  <div class="cards">
+    <a class="card-link" href="/game/">
+      <span class="card-icon">&spades;</span>
+      <span class="card-title">Play</span>
+      <span class="card-desc">Play against a heuristic bot in the browser</span>
+    </a>
+    <a class="card-link" href="/solver/">
+      <span class="card-icon">&diams;</span>
+      <span class="card-title">Solver</span>
+      <span class="card-desc">Check if you can empty your hand from a given state</span>
+    </a>
+  </div>
+</body>
+</html>

@@ -102,7 +102,8 @@ def api_validate_group(req: ValidateGroupRequest):
 
 # Static files — must be last so they don't shadow /api routes
 app.mount("/game", StaticFiles(directory="game/static", html=True), name="game-static")
-app.mount("/", StaticFiles(directory="static", html=True), name="static")
+app.mount("/solver", StaticFiles(directory="static", html=True), name="solver-static")
+app.mount("/", StaticFiles(directory="landing", html=True), name="landing")
 
 if __name__ == "__main__":
     import uvicorn
