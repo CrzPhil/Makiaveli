@@ -1,0 +1,9 @@
+[project]
+name = "makiaveli"
+version = "0.1.0"
+description = "Makiaveli card game solver"
+requires-python = ">=3.10"
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+]

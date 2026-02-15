@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Makiaveli Solver</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header>
+    <h1>Makiaveli Solver</h1>
+  </header>
+
+  <main>
+    <!-- Section 1: Card Input -->
+    <section id="input-section">
+      <h2>Select Cards</h2>
+
+      <div id="target-tabs">
+        <button class="tab active" data-target="hand">Hand</button>
+        <button class="tab" data-target="cross">Cross</button>
+        <!-- Floor group tabs inserted dynamically -->
+        <button id="add-group-btn" class="tab tab-add" title="Add floor group">+ Group</button>
+      </div>
+
+      <div id="card-grid"></div>
+
+      <div id="selection-chips">
+        <div id="chips-label"></div>
+        <div id="chips-list"></div>
+      </div>
+    </section>
+
+    <!-- Section 2: State Summary -->
+    <section id="summary-section">
+      <h2>State Summary</h2>
+      <div id="summary-content"></div>
+      <div id="summary-actions">
+        <button id="solve-btn" disabled>Solve</button>
+        <button id="clear-btn">Clear All</button>
+      </div>
+    </section>
+
+    <!-- Section 3: Solution -->
+    <section id="solution-section" class="hidden">
+      <h2>Solution</h2>
+      <div id="solution-meta"></div>
+      <div id="step-navigator">
+        <button id="step-prev" disabled>&larr; Prev</button>
+        <span id="step-indicator">Step 0 of 0</span>
+        <button id="step-next" disabled>Next &rarr;</button>
+      </div>
+      <div id="step-description"></div>
+      <div id="target-layout"></div>
+      <div id="remaining-cross"></div>
+    </section>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>

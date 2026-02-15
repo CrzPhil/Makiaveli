@@ -1,0 +1,330 @@
+/* ── Reset & Base ─────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg: #1a1a2e;
+  --surface: #16213e;
+  --surface2: #0f3460;
+  --text: #e0e0e0;
+  --text-dim: #8892a4;
+  --accent: #e94560;
+  --hand-color: #4da6ff;
+  --cross-color: #f0a030;
+  --floor-color: #4caf50;
+  --card-red: #e94560;
+  --card-black: #e0e0e0;
+  --radius: 6px;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+header {
+  text-align: center;
+  padding: 1.2rem 1rem 0.6rem;
+}
+header h1 {
+  font-size: 1.6rem;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+}
+
+main {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 0 1rem 2rem;
+}
+
+section {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 1rem 1.2rem;
+  margin-bottom: 1rem;
+}
+section h2 {
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-dim);
+  margin-bottom: 0.8rem;
+}
+
+.hidden { display: none !important; }
+
+/* ── Target Tabs ─────────────────────────────────────────────── */
+#target-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-bottom: 0.8rem;
+}
+.tab {
+  padding: 0.35rem 0.75rem;
+  border: 1px solid var(--surface2);
+  border-radius: var(--radius);
+  background: var(--surface2);
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all 0.15s;
+  position: relative;
+}
+.tab:hover { border-color: var(--text-dim); }
+.tab.active { color: #fff; font-weight: 600; }
+.tab.active[data-target="hand"] { border-color: var(--hand-color); background: rgba(77,166,255,0.15); color: var(--hand-color); }
+.tab.active[data-target="cross"] { border-color: var(--cross-color); background: rgba(240,160,48,0.15); color: var(--cross-color); }
+.tab.active[data-target^="floor-"] { border-color: var(--floor-color); background: rgba(76,175,80,0.15); color: var(--floor-color); }
+.tab .badge {
+  font-size: 0.7rem;
+  margin-left: 0.3rem;
+  opacity: 0.7;
+}
+.tab .validity {
+  margin-left: 0.25rem;
+  font-size: 0.75rem;
+}
+.tab .remove-group {
+  margin-left: 0.3rem;
+  font-size: 0.7rem;
+  opacity: 0.5;
+  cursor: pointer;
+}
+.tab .remove-group:hover { opacity: 1; color: var(--accent); }
+.tab-add {
+  border-style: dashed;
+  color: var(--text-dim);
+}
+
+/* ── Card Grid ───────────────────────────────────────────────── */
+#card-grid {
+  display: grid;
+  grid-template-columns: repeat(13, 1fr);
+  gap: 3px;
+  margin-bottom: 0.8rem;
+}
+.grid-cell {
+  aspect-ratio: 0.72;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--surface2);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.82rem;
+  font-weight: 600;
+  transition: all 0.12s;
+  position: relative;
+  user-select: none;
+  line-height: 1.1;
+}
+.grid-cell:hover { border-color: var(--text-dim); transform: scale(1.05); }
+.grid-cell.dimmed { opacity: 0.25; pointer-events: none; }
+.grid-cell .rank { font-size: 0.9rem; }
+.grid-cell .suit { font-size: 0.75rem; }
+.grid-cell.red { color: var(--card-red); }
+.grid-cell.black { color: var(--card-black); }
+
+/* Assignment indicators */
+.grid-cell .assign-dots {
+  position: absolute;
+  bottom: 2px;
+  display: flex;
+  gap: 2px;
+}
+.grid-cell .assign-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+}
+.assign-dot.hand { background: var(--hand-color); }
+.assign-dot.cross { background: var(--cross-color); }
+.assign-dot.floor { background: var(--floor-color); }
+
+/* ── Selection Chips ─────────────────────────────────────────── */
+#selection-chips {
+  min-height: 2rem;
+}
+#chips-label {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  margin-bottom: 0.3rem;
+}
+#chips-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.12s;
+}
+.chip:hover { opacity: 0.7; }
+.chip.hand { background: rgba(77,166,255,0.2); color: var(--hand-color); }
+.chip.cross { background: rgba(240,160,48,0.2); color: var(--cross-color); }
+.chip.floor { background: rgba(76,175,80,0.2); color: var(--floor-color); }
+.chip .remove { font-size: 0.7rem; opacity: 0.6; }
+.chip .remove:hover { opacity: 1; }
+
+/* ── State Summary ───────────────────────────────────────────── */
+#summary-content {
+  font-size: 0.88rem;
+  margin-bottom: 0.8rem;
+}
+.summary-row {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+  align-items: flex-start;
+}
+.summary-label {
+  font-weight: 600;
+  min-width: 6rem;
+  color: var(--text-dim);
+}
+.summary-cards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+.summary-card {
+  font-weight: 600;
+  font-size: 0.85rem;
+}
+.summary-card.red { color: var(--card-red); }
+.summary-card.black { color: var(--card-black); }
+.summary-group {
+  padding: 0.2rem 0;
+}
+
+#summary-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+#solve-btn {
+  padding: 0.5rem 1.5rem;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+#solve-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+#solve-btn:not(:disabled):hover { opacity: 0.85; }
+#solve-btn.loading { pointer-events: none; }
+
+#clear-btn {
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--surface2);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+#clear-btn:hover { border-color: var(--text-dim); color: var(--text); }
+
+/* ── Solution ────────────────────────────────────────────────── */
+#solution-meta {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  margin-bottom: 0.6rem;
+}
+
+#step-navigator {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  margin-bottom: 0.8rem;
+}
+#step-navigator button {
+  padding: 0.3rem 0.7rem;
+  border: 1px solid var(--surface2);
+  border-radius: var(--radius);
+  background: var(--surface2);
+  color: var(--text);
+  cursor: pointer;
+  font-size: 0.85rem;
+}
+#step-navigator button:disabled { opacity: 0.3; cursor: not-allowed; }
+#step-navigator button:not(:disabled):hover { border-color: var(--text-dim); }
+#step-indicator {
+  font-size: 0.88rem;
+  color: var(--text-dim);
+}
+
+#step-description {
+  padding: 0.6rem 0.8rem;
+  background: var(--surface2);
+  border-radius: var(--radius);
+  font-size: 0.88rem;
+  margin-bottom: 1rem;
+  line-height: 1.6;
+}
+
+#target-layout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+.target-group {
+  background: var(--surface2);
+  border-radius: var(--radius);
+  padding: 0.5rem 0.6rem;
+  display: flex;
+  gap: 0.3rem;
+  align-items: center;
+}
+.target-group-label {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  margin-right: 0.2rem;
+  font-weight: 600;
+}
+
+.card-box {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem 0.4rem;
+  border: 2px solid transparent;
+  border-radius: 4px;
+  font-weight: 700;
+  font-size: 0.88rem;
+  background: rgba(255,255,255,0.05);
+}
+.card-box.red { color: var(--card-red); }
+.card-box.black { color: var(--card-black); }
+.card-box.from-hand { border-color: var(--hand-color); }
+.card-box.from-floor { border-color: var(--cross-color); }
+/* stayed in place: no special border */
+
+#remaining-cross {
+  margin-top: 0.8rem;
+  font-size: 0.88rem;
+  color: var(--text-dim);
+}
+
+/* ── Responsive ──────────────────────────────────────────────── */
+@media (max-width: 500px) {
+  #card-grid { gap: 2px; }
+  .grid-cell { font-size: 0.7rem; }
+  .grid-cell .rank { font-size: 0.75rem; }
+  .grid-cell .suit { font-size: 0.6rem; }
+  .tab { padding: 0.3rem 0.5rem; font-size: 0.78rem; }
+}
