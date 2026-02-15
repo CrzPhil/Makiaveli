@@ -1,10 +1,12 @@
-# Makiaveli Solver
+# Makiaveli
 
-A solver for my favourite card game Makiaveli, designed to determine if a player could have won from a given game state.
+A solver and playable game for my favourite card game Makiaveli.
+
+> _In memoriam of my beloved Γιαγια, who taught me this game and was the undisputed champion of figuring out complex plays._
 
 ## About Makiaveli
 
-Makiaveli is a strategic card game that combines elements of rummy-style play with unique rules around card placement and rearrangement.
+Makiaveli is a Greek card game- a rummy variant where you can rearrange existing plays on the table to make room for your own cards.
 
 ## Game Rules
 
@@ -84,22 +86,28 @@ Valid action:
 - The set of 7s remains unchanged
 - All combinations have 3+ cards ✓
 
-## Project Goals
+## What's in this repo
 
-### Phase 1: Solver Logic (Current)
-Implement the core game logic and solver to determine if a player could win from a given position.
+### Solver
 
-### Phase 2: Web Application (Future)
-- Create a web interface
-- Add image parsing to detect card layouts from photos
-- Deploy as an accessible web app
+The solver determines whether a player can empty their hand from a given game state. You feed it a hand, the floor groups, and the cross cards, and it tells you if there's a valid play that gets rid of everything.
 
-## Preview
-
-There is a web application to make the setup more user-friendly. It is kept quite minimal but works well:
+There's a web UI for it at `/solver` — click cards onto the grid, hit solve.
 
 ![web preview](./assets/preview.png)
 
+### Game
+
+Play against a heuristic bot in the browser at `/game`. The bot uses the solver internally to decide its moves, trying the largest possible play first and falling back to drawing.
+
+### Running
+
+```
+uv run python server.py
+```
+
+Then open `http://localhost:8000` for the landing page.
+
 ## Contributing
 
-This is a pet project to settle debates about whether someone could have won from a particular game state. Contributions welcome!
+Pet project to settle debates about whether someone could have won from a particular game state. Contributions welcome!
