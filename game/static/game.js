@@ -24,6 +24,7 @@ let winner = null;
 let playMode = false;
 let staging = [];          // array of arrays of card objects (editable copy)
 let selectedCards = [];    // cards selected for placement
+let savedHand = null;      // snapshot of hand before play mode
 
 /* ── DOM refs ────────────────────────────────────────────────────────── */
 
@@ -199,6 +200,8 @@ function renderButtons() {
 function enterPlayMode() {
   playMode = true;
   selectedCards = [];
+  // Save a deep copy of hand so we can restore on cancel
+  savedHand = hand.map(c => ({ ...c }));
   // Copy floor + active cross into staging
   staging = floorGroups.map(g => g.map(c => ({ ...c })));
   // Add active cross cards as single-card groups
@@ -213,6 +216,11 @@ function enterPlayMode() {
 }
 
 function exitPlayMode() {
+  // Restore hand from saved snapshot (cards may have been moved to staging)
+  if (savedHand) {
+    hand = savedHand;
+    savedHand = null;
+  }
   playMode = false;
   selectedCards = [];
   staging = [];
@@ -332,7 +340,7 @@ function placeSelectedInGroup(gi) {
   // Place hand cards
   if (handSelected.length > 0) {
     handSelected.forEach(s => {
-      staging[gi].push({ code: s.code, rank: s.rank, suit: s.suit, display: s.display });
+      staging[gi].push({ code: s.code, rank: s.rank, suit: s.suit, display: s.display, _fromHand: true });
       // Remove from hand
       const hIdx = hand.findIndex(h => h.code === s.code && h._idx === s._idx);
       if (hIdx >= 0) hand.splice(hIdx, 1);
@@ -352,9 +360,13 @@ function addStagingGroup() {
 
 function removeStagingGroup(gi) {
   const group = staging[gi];
-  // Return any cards that came from hand back to hand
-  // (We can't easily distinguish, so we just remove the group — cards are lost from staging)
-  // Better: put cards back as selected
+  // Return cards that came from hand back to hand
+  group.forEach(c => {
+    if (c._fromHand) {
+      hand.push({ code: c.code, rank: c.rank, suit: c.suit, display: c.display });
+    }
+  });
+  hand.forEach((c, i) => c._idx = i);
   staging.splice(gi, 1);
   selectedCards = selectedCards.filter(s => !(s._fromStaging && s._stagingGroup === gi));
   // Fix staging group indices in selected
@@ -441,25 +453,12 @@ async function drawCard() {
 }
 
 async function endTurn() {
-  // Figure out which cards were played from the original hand
-  // Original hand had _idx tags — compare with current hand
-  const originalCodes = [];
-  // We need to figure out which hand cards are no longer in hand
-  // We stored original hand at enterPlayMode time... but we mutated hand.
-  // Instead, compute cards_played as: original hand - current hand
-  // We'll send staging as the new floor and figure cards_played from the diff
-
-  // Build cards_played: cards from original hand not in current hand
-  // Fetch current state to get original hand
-  const stateData = await apiGet(`/api/game/${gameId}/state`);
-  const origHand = stateData.hand;
-
-  // cards_played = origHand - current hand
+  // cards_played = savedHand - current hand (cards moved to staging)
   const currentCodes = hand.map(c => c.code);
   const cardsPlayed = [];
   const usedCurrent = new Array(currentCodes.length).fill(false);
 
-  for (const orig of origHand) {
+  for (const orig of savedHand) {
     let found = false;
     for (let i = 0; i < currentCodes.length; i++) {
       if (!usedCurrent[i] && currentCodes[i] === orig.code) {
@@ -489,6 +488,7 @@ async function endTurn() {
       cards_played: cardsPlayed,
     });
     loadState(data);
+    savedHand = null;  // don't restore old hand — play was accepted
     exitPlayMode();
     setStatus("Move accepted! Bot is thinking...");
     render();
