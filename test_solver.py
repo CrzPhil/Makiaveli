@@ -203,20 +203,20 @@ class TestSolveHand(unittest.TestCase):
     def test_extend_cross(self):
         hand = [Card(3, 'S'), Card(4, 'S')]
         floor = [[Card(2, 'S')]]
-        solvable, groups = solve_hand(hand, floor)
+        solvable, groups, remaining = solve_hand(hand, floor)
         self.assertTrue(solvable)
 
     def test_with_rearrangement(self):
         hand = [Card(7, 'D')]
         floor = [[Card(7, 'S'), Card(7, 'H'), Card(7, 'C')],
                  [Card(8, 'C'), Card(9, 'C'), Card(10, 'C')]]
-        solvable, groups = solve_hand(hand, floor)
+        solvable, groups, remaining = solve_hand(hand, floor)
         self.assertTrue(solvable)
 
     def test_impossible(self):
         hand = [Card(2, 'H')]
         floor = [[Card(7, 'S'), Card(7, 'H'), Card(7, 'D')]]
-        solvable, groups = solve_hand(hand, floor)
+        solvable, groups, remaining = solve_hand(hand, floor)
         self.assertFalse(solvable)
 
     def test_complex_rearrangement(self):
@@ -224,7 +224,7 @@ class TestSolveHand(unittest.TestCase):
         hand = [Card(8, 'S'), Card(9, 'S')]
         floor = [[Card(5, 'S'), Card(6, 'S'), Card(7, 'S')],
                  [Card(7, 'H'), Card(7, 'D'), Card(7, 'C')]]
-        solvable, groups = solve_hand(hand, floor)
+        solvable, groups, remaining = solve_hand(hand, floor)
         # Solution: [5S,6S,7S,8S,9S] + [7H,7D,7C]
         self.assertTrue(solvable)
         all_cards = list(hand)
@@ -232,6 +232,63 @@ class TestSolveHand(unittest.TestCase):
             all_cards.extend(g)
         valid, _ = verify_solution(all_cards, groups)
         self.assertTrue(valid)
+
+
+class TestCrossCards(unittest.TestCase):
+    def test_cross_can_stay_as_singles(self):
+        """Cross cards that can't be placed should remain as singles."""
+        hand = [Card(3, 'S'), Card(4, 'S')]
+        floor = [[Card(2, 'S'), Card(3, 'S'), Card(4, 'S'), Card(5, 'S')]]
+        cross = [Card(8, 'H')]  # can't go anywhere
+        solvable, groups, remaining = solve_hand(hand, floor, cross)
+        self.assertTrue(solvable)
+        self.assertEqual(remaining, [Card(8, 'H')])
+
+    def test_cross_incorporated_when_possible(self):
+        """Cross cards should be used if they fit."""
+        hand = [Card(3, 'S'), Card(4, 'S')]
+        floor = []
+        cross = [Card(2, 'S')]  # can join the run
+        solvable, groups, remaining = solve_hand(hand, floor, cross)
+        self.assertTrue(solvable)
+        self.assertEqual(remaining, [])  # cross card was used
+
+    def test_user_reported_case(self):
+        """The exact case from the bug report — cross A♠, 3♦, 3♦, Q♥."""
+        hand = [Card(3, 'S'), Card(5, 'S'), Card(1, 'D'),
+                Card(13, 'D'), Card(4, 'C'), Card(8, 'C')]
+        cross = [Card(1, 'S'), Card(3, 'D'), Card(3, 'D'), Card(12, 'H')]
+        floor = [
+            [Card(1,'S'),Card(2,'S'),Card(3,'S'),Card(4,'S'),
+             Card(5,'S'),Card(6,'S'),Card(7,'S')],
+            [Card(4,'C'),Card(4,'D'),Card(4,'H'),Card(4,'S')],
+            [Card(12,'C'),Card(12,'D'),Card(12,'H')],
+            [Card(9,'S'),Card(10,'S'),Card(11,'S'),Card(12,'S')],
+            [Card(5,'C'),Card(6,'C'),Card(7,'C')],
+        ]
+        solvable, groups, remaining = solve_hand(hand, floor, cross)
+        self.assertTrue(solvable)
+        # All 4 cross cards should remain as singles
+        self.assertEqual(len(remaining), 4)
+        # All hand cards must be placed
+        all_placed = list(hand)
+        for g in floor:
+            all_placed.extend(g)
+        for c in cross:
+            if c not in remaining:
+                all_placed.append(c)
+        valid, _ = verify_solution(all_placed, groups)
+        self.assertTrue(valid)
+
+    def test_multiple_cross_some_used(self):
+        """Some cross cards get incorporated, others stay."""
+        hand = [Card(3, 'S'), Card(4, 'S')]
+        floor = []
+        cross = [Card(2, 'S'), Card(9, 'H')]
+        # 2S joins the run [2S,3S,4S], 9H can't go anywhere
+        solvable, groups, remaining = solve_hand(hand, floor, cross)
+        self.assertTrue(solvable)
+        self.assertEqual(remaining, [Card(9, 'H')])
 
 
 if __name__ == '__main__':

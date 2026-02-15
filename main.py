@@ -151,20 +151,20 @@ def prompt_edit():
 
 def run_solver(hand, cross, floor_groups):
     """Run the solver and display results."""
-    all_floor = build_floor(cross, floor_groups)
-
     print("Solving...\n")
-    solvable, target_groups = solve_hand(hand, all_floor)
+    solvable, target_groups, remaining_cross = solve_hand(
+        hand, floor_groups, cross)
 
     if not solvable:
         print("No solution. You cannot empty your hand from this state.\n")
         return
 
-    # Verify correctness
-    all_cards = list(hand)
-    for g in all_floor:
-        all_cards.extend(g)
-    valid, msg = verify_solution(all_cards, target_groups)
+    # Verify correctness — only placed cards should be in the partition
+    included_cross = [c for c in cross if c not in remaining_cross]
+    all_placed = list(hand) + included_cross
+    for g in floor_groups:
+        all_placed.extend(g)
+    valid, msg = verify_solution(all_placed, target_groups)
     if not valid:
         print(f"Internal error: solver produced invalid result ({msg})\n")
         return
@@ -175,8 +175,15 @@ def run_solver(hand, cross, floor_groups):
     for i, group in enumerate(target_groups):
         print(f"  [{i}] {format_group(list(group))}")
 
-    # Steps
-    steps = plan_steps(all_floor, target_groups, hand)
+    if remaining_cross:
+        print(f"\n  Cross cards left in place: "
+              f"{', '.join(str(c) for c in remaining_cross)}")
+
+    # Steps — initial floor includes incorporated cross cards as singles
+    initial_floor = list(floor_groups)
+    for c in included_cross:
+        initial_floor.append([c])
+    steps = plan_steps(initial_floor, target_groups, hand)
     if steps:
         print(f"\nSteps ({len(steps)}):")
         for i, step in enumerate(steps, 1):

@@ -241,7 +241,7 @@ def run_benchmark(args, rng):
         card_count = hand_n + floor_n
 
         t0 = time.time()
-        solvable, _ = solve_hand(hand, floor)
+        solvable, _, _ = solve_hand(hand, floor)
         elapsed = time.time() - t0
         times.append(elapsed)
 
@@ -318,7 +318,7 @@ def main():
     # Solve
     print(f"\nSolving...")
     t0 = time.time()
-    solvable, target = solve_hand(hand, floor)
+    solvable, target, _ = solve_hand(hand, floor)
     elapsed = time.time() - t0
 
     if solvable:

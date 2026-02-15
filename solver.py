@@ -186,24 +186,40 @@ def solve(pool):
     return None
 
 
-def solve_hand(hand, floor_groups):
+def solve_hand(hand, floor_groups, cross=None):
     """
-    Given a player's hand and the current floor, determine if the player
-    can empty their hand.
+    Given a player's hand, floor groups, and unincorporated cross cards,
+    determine if the player can empty their hand.
 
-    Returns (solvable, target_groups) where target_groups is the full
-    partition of all cards (hand + floor) into valid groups.
+    Cross cards may remain as singles — they are not required to be in
+    valid groups.  The solver tries to include as many as possible,
+    falling back to excluding them one-by-one.
+
+    Returns (solvable, target_groups, remaining_cross) where
+      target_groups  — the partition of placed cards into valid groups
+      remaining_cross — cross cards left as singles (not in any group)
     """
-    all_cards = list(hand)
-    for group in floor_groups:
-        all_cards.extend(group)
+    if cross is None:
+        cross = []
 
-    pool = CardPool.from_cards(all_cards)
-    result = solve(pool)
+    # Cards that MUST be in valid groups
+    required = list(hand)
+    for g in floor_groups:
+        required.extend(g)
 
-    if result is None:
-        return False, None
-    return True, result
+    # Try including as many cross cards as possible (0 excluded first)
+    for n_exclude in range(len(cross) + 1):
+        for excluded in combinations(range(len(cross)), n_exclude):
+            excluded_set = set(excluded)
+            included = [cross[i] for i in range(len(cross))
+                        if i not in excluded_set]
+            pool = CardPool.from_cards(required + included)
+            result = solve(pool)
+            if result is not None:
+                left = [cross[i] for i in excluded]
+                return True, result, left
+
+    return False, None, []
 
 
 def verify_solution(all_cards, groups):
