@@ -160,7 +160,14 @@ def run_solver(hand, cross, floor_groups):
         return
 
     # Verify correctness — only placed cards should be in the partition
-    included_cross = [c for c in cross if c not in remaining_cross]
+    # Use consume-from-copy to handle duplicate cross cards correctly
+    remaining_copy = list(remaining_cross)
+    included_cross = []
+    for c in cross:
+        if c in remaining_copy:
+            remaining_copy.remove(c)
+        else:
+            included_cross.append(c)
     all_placed = list(hand) + included_cross
     for g in floor_groups:
         all_placed.extend(g)

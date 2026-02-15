@@ -234,6 +234,43 @@ class TestSolveHand(unittest.TestCase):
         self.assertTrue(valid)
 
 
+class TestLargeFloor(unittest.TestCase):
+    def test_18_groups_3_hand(self):
+        """The case that caused the solver to hang — 18 floor groups, 3 hand cards."""
+        hand = [Card(2, 'D'), Card(4, 'D'), Card(9, 'H')]
+        floor = [
+            [Card(5,'C'),Card(6,'C'),Card(7,'C'),Card(8,'C'),Card(9,'C'),Card(10,'C')],
+            [Card(10,'S'),Card(11,'S'),Card(12,'S')],
+            [Card(6,'C'),Card(6,'D'),Card(6,'H'),Card(6,'S')],
+            [Card(5,'D'),Card(6,'D'),Card(7,'D'),Card(8,'D'),Card(9,'D')],
+            [Card(3,'H'),Card(4,'H'),Card(5,'H'),Card(6,'H'),Card(7,'H'),Card(8,'H'),Card(9,'H')],
+            [Card(3,'C'),Card(3,'D'),Card(3,'S')],
+            [Card(8,'C'),Card(9,'C'),Card(10,'C')],
+            [Card(7,'C'),Card(7,'D'),Card(7,'H'),Card(7,'S')],
+            [Card(11,'C'),Card(12,'C'),Card(13,'C')],
+            [Card(3,'C'),Card(3,'D'),Card(3,'H'),Card(3,'S')],
+            [Card(12,'D'),Card(12,'H'),Card(12,'S')],
+            [Card(5,'S'),Card(6,'S'),Card(7,'S'),Card(8,'S'),Card(9,'S'),Card(10,'S')],
+            [Card(11,'C'),Card(12,'C'),Card(13,'C')],
+            [Card(8,'D'),Card(9,'D'),Card(10,'D'),Card(11,'D'),Card(12,'D'),Card(13,'D')],
+            [Card(5,'C'),Card(5,'D'),Card(5,'H'),Card(5,'S')],
+            [Card(11,'D'),Card(11,'H'),Card(11,'S')],
+            [Card(1,'C'),Card(1,'D'),Card(1,'H'),Card(1,'S')],
+            [Card(1,'D'),Card(1,'H'),Card(1,'S')],
+        ]
+        import time
+        t0 = time.time()
+        solvable, groups, remaining = solve_hand(hand, floor)
+        elapsed = time.time() - t0
+        self.assertTrue(solvable, "Should be solvable")
+        self.assertLess(elapsed, 10.0, f"Took {elapsed:.1f}s, should be under 10s")
+        all_cards = list(hand)
+        for g in floor:
+            all_cards.extend(g)
+        valid, msg = verify_solution(all_cards, groups)
+        self.assertTrue(valid, msg)
+
+
 class TestCrossCards(unittest.TestCase):
     def test_cross_can_stay_as_singles(self):
         """Cross cards that can't be placed should remain as singles."""

@@ -1,3 +1,4 @@
+import time
 from itertools import combinations
 from collections import Counter
 from card import Card, SUITS
@@ -142,16 +143,20 @@ def _groups_for(card, pool):
 # Solver (backtracking with most-constrained-first heuristic)
 # ---------------------------------------------------------------------------
 
-def solve(pool):
+def solve(pool, deadline=None):
     """
     Partition all cards in pool into valid groups.
 
     Returns list of groups (each a tuple of Cards) if solvable, None otherwise.
+    Optional deadline (time.time() value) for timeout.
     """
     if pool.is_empty():
         return []
 
     if pool.total < 3:
+        return None
+
+    if deadline is not None and time.time() > deadline:
         return None
 
     # Find the most constrained card (fewest valid groups)
@@ -177,7 +182,7 @@ def solve(pool):
 
     for group in best_groups:
         pool.remove_group(group)
-        result = solve(pool)
+        result = solve(pool, deadline)
         if result is not None:
             pool.add_group(group)
             return [group] + result
@@ -186,10 +191,105 @@ def solve(pool):
     return None
 
 
+# ---------------------------------------------------------------------------
+# Incremental solver for solve_hand
+# ---------------------------------------------------------------------------
+
+_MAX_ATTEMPTS = 50000    # cap on total sub-problems tried
+_SUB_TIMEOUT = 5.0       # seconds per sub-problem solve
+_OVERALL_TIMEOUT = 60.0  # seconds for entire solve_hand call
+
+
+def _relevance_scores(hand_cards, floor_groups):
+    """
+    Score each floor group by how relevant it is to placing the hand cards.
+    Higher score = more likely to need dissolution.
+    """
+    hand_ranks = set(c.rank for c in hand_cards)
+    hand_suits = set(c.suit for c in hand_cards)
+
+    scores = []
+    for i, g in enumerate(floor_groups):
+        score = 0
+        for c in g:
+            if c.rank in hand_ranks:
+                score += 2
+            if c.suit in hand_suits:
+                score += 1
+        scores.append((i, score))
+
+    return scores
+
+
+def _solve_incremental(hand_cards, floor_groups, deadline):
+    """
+    Place hand_cards while keeping as many floor groups intact as possible.
+
+    Strategy: iteratively dissolve 0, 1, 2, ... floor groups (most relevant
+    first) and re-partition only the dissolved cards + hand.  This is vastly
+    faster than re-partitioning all cards from scratch.
+    """
+    if not hand_cards:
+        return [tuple(g) for g in floor_groups]
+
+    if not floor_groups:
+        pool = CardPool.from_cards(hand_cards)
+        return solve(pool, deadline)
+
+    # Sort groups by relevance (highest first); only keep score > 0
+    scored = _relevance_scores(hand_cards, floor_groups)
+    relevant = [i for i, score in sorted(scored, key=lambda x: -x[1])
+                if score > 0]
+
+    # Iterative deepening: dissolve k groups at a time
+    total_tried = 0
+    for k in range(len(relevant) + 1):
+        for indices in combinations(relevant, k):
+            if time.time() > deadline:
+                return None
+            total_tried += 1
+            if total_tried > _MAX_ATTEMPTS:
+                break
+
+            # Pool = hand cards + dissolved groups' cards
+            pool_cards = list(hand_cards)
+            for i in indices:
+                pool_cards.extend(floor_groups[i])
+
+            pool = CardPool.from_cards(pool_cards)
+            sub_deadline = min(deadline, time.time() + _SUB_TIMEOUT)
+            result = solve(pool, sub_deadline)
+
+            if result is not None:
+                # Combine with unchanged floor groups
+                full_result = list(result)
+                idx_set = set(indices)
+                for i, g in enumerate(floor_groups):
+                    if i not in idx_set:
+                        full_result.append(tuple(g))
+                return full_result
+
+        if total_tried > _MAX_ATTEMPTS or time.time() > deadline:
+            break
+
+    # Fallback: full solve (dissolve everything) with remaining time
+    if time.time() < deadline:
+        all_cards = list(hand_cards)
+        for g in floor_groups:
+            all_cards.extend(g)
+        pool = CardPool.from_cards(all_cards)
+        return solve(pool, deadline)
+
+    return None
+
+
 def solve_hand(hand, floor_groups, cross=None):
     """
     Given a player's hand, floor groups, and unincorporated cross cards,
     determine if the player can empty their hand.
+
+    Uses incremental solving: keeps most floor groups intact and only
+    re-partitions the minimum necessary cards.
 
     Cross cards may remain as singles — they are not required to be in
     valid groups.  The solver tries to include as many as possible,
@@ -202,19 +302,18 @@ def solve_hand(hand, floor_groups, cross=None):
     if cross is None:
         cross = []
 
-    # Cards that MUST be in valid groups
-    required = list(hand)
-    for g in floor_groups:
-        required.extend(g)
+    deadline = time.time() + _OVERALL_TIMEOUT
 
     # Try including as many cross cards as possible (0 excluded first)
     for n_exclude in range(len(cross) + 1):
         for excluded in combinations(range(len(cross)), n_exclude):
+            if time.time() > deadline:
+                break
             excluded_set = set(excluded)
             included = [cross[i] for i in range(len(cross))
                         if i not in excluded_set]
-            pool = CardPool.from_cards(required + included)
-            result = solve(pool)
+
+            result = _solve_incremental(hand + included, floor_groups, deadline)
             if result is not None:
                 left = [cross[i] for i in excluded]
                 return True, result, left
