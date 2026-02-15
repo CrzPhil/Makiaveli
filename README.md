@@ -100,6 +100,8 @@ There's a web UI for it at `/solver` — click cards onto the grid, hit solve.
 
 Play against a heuristic bot in the browser at `/game`. The bot uses the solver internally to decide its moves, trying the largest possible play first and falling back to drawing.
 
+![game](./assets/game.png)
+
 ### Running
 
 ```
@@ -107,6 +109,8 @@ uv run python server.py
 ```
 
 Then open `http://localhost:8000` for the landing page.
+
+![landing](./assets/landing.png)
 
 ## Contributing
 
