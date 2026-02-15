@@ -200,48 +200,97 @@ _SUB_TIMEOUT = 5.0       # seconds per sub-problem solve
 _OVERALL_TIMEOUT = 60.0  # seconds for entire solve_hand call
 
 
-def _relevance_scores(hand_cards, floor_groups):
+def _needed_cards(hand_cards):
     """
-    Score each floor group by how relevant it is to placing the hand cards.
-    Higher score = more likely to need dissolution.
-    """
-    hand_ranks = set(c.rank for c in hand_cards)
-    hand_suits = set(c.suit for c in hand_cards)
+    Compute the specific (rank, suit) pairs that hand cards need from the
+    floor to form valid groups.
 
-    scores = []
+    - For sets: same rank, other suits
+    - For runs: same suit, immediately adjacent ranks (±1)
+    """
+    needed = set()
+    hand_set = {(c.rank, c.suit) for c in hand_cards}
+
+    for hc in hand_cards:
+        # Sets: same rank, other suits
+        for s in SUITS:
+            if s != hc.suit:
+                needed.add((hc.rank, s))
+        # Runs: same suit, adjacent ranks
+        if hc.rank > 1:
+            needed.add((hc.rank - 1, hc.suit))
+        if hc.rank < 13:
+            needed.add((hc.rank + 1, hc.suit))
+        # Ace adjacency: A(1) can follow K(13) in a run
+        if hc.rank == 1:
+            needed.add((13, hc.suit))
+        if hc.rank == 13:
+            needed.add((1, hc.suit))
+
+    return needed - hand_set
+
+
+def _find_relevant_groups(hand_cards, floor_groups):
+    """
+    Find floor groups relevant to placing hand cards, clustered by actual
+    card needs rather than broad suit/rank overlap.
+
+    Returns (tight, broad):
+      tight  — groups containing cards directly needed by hand (±1 for runs)
+      broad  — tight + groups containing cards needed by freed cards from
+               tight groups (one-hop expansion for redistribution)
+    """
+    needed = _needed_cards(hand_cards)
+
+    # Phase 1: groups containing cards directly needed by hand
+    # Sort by need-density (needed_cards / group_size) so smaller, more
+    # targeted groups rank higher — they're more likely dissolution candidates.
+    tight = []
     for i, g in enumerate(floor_groups):
-        score = 0
-        for c in g:
-            if c.rank in hand_ranks:
-                score += 2
-            if c.suit in hand_suits:
-                score += 1
-        scores.append((i, score))
+        score = sum(1 for c in g if (c.rank, c.suit) in needed)
+        if score > 0:
+            tight.append((i, score, len(g)))
+    tight.sort(key=lambda x: (-x[1] / x[2], x[2]))
+    tight_indices = [i for i, _, _ in tight]
+    tight_set = set(tight_indices)
 
-    return scores
+    # Phase 2: one-hop expansion for card redistribution
+    # When we dissolve a tight group, its non-needed cards become "freed"
+    # and need new homes.  Find groups that could absorb them.
+    freed_needs = set()
+    for i in tight_set:
+        for c in floor_groups[i]:
+            if (c.rank, c.suit) in needed:
+                continue
+            # This card might be freed; compute what it needs
+            for s in SUITS:
+                if s != c.suit:
+                    freed_needs.add((c.rank, s))
+            if c.rank > 1:
+                freed_needs.add((c.rank - 1, c.suit))
+            if c.rank < 13:
+                freed_needs.add((c.rank + 1, c.suit))
+            if c.rank == 1:
+                freed_needs.add((13, c.suit))
+            if c.rank == 13:
+                freed_needs.add((1, c.suit))
+
+    broad = list(tight_indices)
+    for i, g in enumerate(floor_groups):
+        if i not in tight_set:
+            score = sum(1 for c in g if (c.rank, c.suit) in freed_needs)
+            if score > 0:
+                broad.append(i)
+
+    return tight_indices, broad
 
 
-def _solve_incremental(hand_cards, floor_groups, deadline):
+def _try_dissolve(hand_cards, floor_groups, relevant, deadline):
     """
-    Place hand_cards while keeping as many floor groups intact as possible.
-
-    Strategy: iteratively dissolve 0, 1, 2, ... floor groups (most relevant
-    first) and re-partition only the dissolved cards + hand.  This is vastly
-    faster than re-partitioning all cards from scratch.
+    Try dissolving subsets of `relevant` floor groups (iterative deepening)
+    and re-partitioning only the dissolved cards + hand.
+    Returns a full group list on success, None on failure/timeout.
     """
-    if not hand_cards:
-        return [tuple(g) for g in floor_groups]
-
-    if not floor_groups:
-        pool = CardPool.from_cards(hand_cards)
-        return solve(pool, deadline)
-
-    # Sort groups by relevance (highest first); only keep score > 0
-    scored = _relevance_scores(hand_cards, floor_groups)
-    relevant = [i for i, score in sorted(scored, key=lambda x: -x[1])
-                if score > 0]
-
-    # Iterative deepening: dissolve k groups at a time
     total_tried = 0
     for k in range(len(relevant) + 1):
         for indices in combinations(relevant, k):
@@ -249,9 +298,8 @@ def _solve_incremental(hand_cards, floor_groups, deadline):
                 return None
             total_tried += 1
             if total_tried > _MAX_ATTEMPTS:
-                break
+                return None
 
-            # Pool = hand cards + dissolved groups' cards
             pool_cards = list(hand_cards)
             for i in indices:
                 pool_cards.extend(floor_groups[i])
@@ -261,7 +309,6 @@ def _solve_incremental(hand_cards, floor_groups, deadline):
             result = solve(pool, sub_deadline)
 
             if result is not None:
-                # Combine with unchanged floor groups
                 full_result = list(result)
                 idx_set = set(indices)
                 for i, g in enumerate(floor_groups):
@@ -269,8 +316,38 @@ def _solve_incremental(hand_cards, floor_groups, deadline):
                         full_result.append(tuple(g))
                 return full_result
 
-        if total_tried > _MAX_ATTEMPTS or time.time() > deadline:
-            break
+    return None
+
+
+def _solve_incremental(hand_cards, floor_groups, deadline):
+    """
+    Place hand_cards while keeping as many floor groups intact as possible.
+
+    Strategy: cluster floor groups by relevance to the hand, then try
+    dissolving combinations within each cluster before falling back to
+    broader searches.
+    """
+    if not hand_cards:
+        return [tuple(g) for g in floor_groups]
+
+    if not floor_groups:
+        pool = CardPool.from_cards(hand_cards)
+        return solve(pool, deadline)
+
+    tight, broad = _find_relevant_groups(hand_cards, floor_groups)
+
+    # Phase 1: try tight cluster (directly needed groups only)
+    if tight:
+        result = _try_dissolve(hand_cards, floor_groups, tight, deadline)
+        if result is not None:
+            return result
+
+    # Phase 2: try broad cluster (adds redistribution targets)
+    extra = [i for i in broad if i not in set(tight)]
+    if extra and time.time() < deadline:
+        result = _try_dissolve(hand_cards, floor_groups, broad, deadline)
+        if result is not None:
+            return result
 
     # Fallback: full solve (dissolve everything) with remaining time
     if time.time() < deadline:
