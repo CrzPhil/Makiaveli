@@ -94,6 +94,12 @@ Implement the core game logic and solver to determine if a player could win from
 - Add image parsing to detect card layouts from photos
 - Deploy as an accessible web app
 
+## Preview
+
+There is a web application to make the setup more user-friendly. It is kept quite minimal but works well:
+
+![web preview](./assets/preview.png)
+
 ## Contributing
 
 This is a pet project to settle debates about whether someone could have won from a particular game state. Contributions welcome!
