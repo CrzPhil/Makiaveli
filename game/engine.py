@@ -112,6 +112,24 @@ def validate_play(
         if not is_valid_group(group):
             return False, f"Group {i} is not a valid set or run"
 
+    # Cross cards are anchored: each active cross card must appear in a
+    # separate floor group (you can't merge two cross cards into one group)
+    active_cross = [c for c in gs.cross if c is not None]
+    if active_cross:
+        cross_set = {(c.rank, c.suit) for c in active_cross}
+        # Build a counter of cross cards to handle duplicates
+        cross_counter = _card_counter(active_cross)
+        cross_remaining = Counter(cross_counter)
+        for group in new_floor:
+            cross_in_group = 0
+            for card in group:
+                key = (card.rank, card.suit)
+                if key in cross_set and cross_remaining.get(key, 0) > 0:
+                    cross_remaining[key] -= 1
+                    cross_in_group += 1
+            if cross_in_group > 1:
+                return False, "Cross cards are anchored — each must be in its own group"
+
     return True, "OK"
 
 

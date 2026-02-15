@@ -202,11 +202,11 @@ function enterPlayMode() {
   selectedCards = [];
   // Save a deep copy of hand so we can restore on cancel
   savedHand = hand.map(c => ({ ...c }));
-  // Copy floor + active cross into staging
+  // Copy floor into staging
   staging = floorGroups.map(g => g.map(c => ({ ...c })));
-  // Add active cross cards as single-card groups
-  cross.forEach(c => {
-    if (c !== null) staging.push([{ ...c, _fromCross: true }]);
+  // Add active cross cards as anchored single-card groups
+  cross.forEach((c, i) => {
+    if (c !== null) staging.push([{ ...c, _crossSlot: i }]);
   });
   // Tag hand cards with unique indices for selection tracking
   hand.forEach((c, i) => c._idx = i);
@@ -229,11 +229,16 @@ function exitPlayMode() {
   render();
 }
 
+function _groupHasCross(group) {
+  return group.some(c => c._crossSlot !== undefined);
+}
+
 function renderStaging() {
   $stagingGroups.innerHTML = "";
   staging.forEach((group, gi) => {
     const div = document.createElement("div");
-    div.className = "staging-group";
+    const isCrossGroup = _groupHasCross(group);
+    div.className = "staging-group" + (isCrossGroup ? " cross-anchored" : "");
 
     // Validate
     if (group.length >= 3) {
@@ -243,28 +248,35 @@ function renderStaging() {
 
     const label = document.createElement("span");
     label.className = "staging-group-label";
-    label.textContent = `#${gi}`;
+    label.textContent = isCrossGroup ? "\u2693" : `#${gi}`;
     div.appendChild(label);
 
     group.forEach((card, ci) => {
+      const isCrossCard = card._crossSlot !== undefined;
       const isSelected = selectedCards.some(s => s._stagingGroup === gi && s._stagingIdx === ci);
-      const el = makeCardEl(card, isSelected ? "selected" : "");
-      el.addEventListener("click", (e) => {
-        e.stopPropagation();
-        toggleStagingCard(gi, ci, card);
-      });
+      const extraCls = isCrossCard ? "cross-card" : (isSelected ? "selected" : "");
+      const el = makeCardEl(card, extraCls);
+      if (!isCrossCard) {
+        // Non-cross cards in a group can be selected and moved
+        el.addEventListener("click", (e) => {
+          e.stopPropagation();
+          toggleStagingCard(gi, ci, card);
+        });
+      }
       div.appendChild(el);
     });
 
-    // Remove group button
-    const removeBtn = document.createElement("span");
-    removeBtn.className = "remove-group";
-    removeBtn.textContent = "\u2715";
-    removeBtn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      removeStagingGroup(gi);
-    });
-    div.appendChild(removeBtn);
+    // Remove group button — not for cross-anchored groups
+    if (!isCrossGroup) {
+      const removeBtn = document.createElement("span");
+      removeBtn.className = "remove-group";
+      removeBtn.textContent = "\u2715";
+      removeBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        removeStagingGroup(gi);
+      });
+      div.appendChild(removeBtn);
+    }
 
     // Click group to place selected cards
     div.addEventListener("click", () => placeSelectedInGroup(gi));
@@ -333,7 +345,8 @@ function placeSelectedInGroup(gi) {
       toMove.push(...removed);
     });
     staging[gi].push(...toMove);
-    // Remove empty groups (but not the target)
+    // Remove empty groups (but not the target; cross groups can't be emptied
+    // because the anchored cross card is never selectable)
     staging = staging.filter((g, i) => g.length > 0 || i === gi);
   }
 

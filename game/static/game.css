@@ -209,6 +209,12 @@ section h2 {
   min-width: 60px;
 }
 .staging-group:hover { border-color: var(--hand-color); }
+.staging-group.cross-anchored {
+  border-color: var(--cross-color);
+  border-style: solid;
+  background: rgba(240,160,48,0.06);
+}
+.staging-group.cross-anchored:hover { border-color: var(--cross-color); }
 .staging-group.valid { border-color: var(--floor-color); border-style: solid; }
 .staging-group.invalid { border-color: var(--accent); border-style: solid; }
 .staging-group-label {

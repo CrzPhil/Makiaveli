@@ -23,6 +23,26 @@ def _active_cross(gs: GameState) -> list[Card]:
     return [c for c in gs.cross if c is not None]
 
 
+def _respects_cross_anchoring(groups, cross_cards):
+    """Check that no group contains more than one cross card."""
+    if not cross_cards:
+        return True
+    cross_set = {(c.rank, c.suit) for c in cross_cards}
+    from collections import Counter
+    cross_counter = Counter((c.rank, c.suit) for c in cross_cards)
+    remaining = Counter(cross_counter)
+    for group in groups:
+        count = 0
+        for card in group:
+            key = (card.rank, card.suit)
+            if key in cross_set and remaining.get(key, 0) > 0:
+                remaining[key] -= 1
+                count += 1
+        if count > 1:
+            return False
+    return True
+
+
 def _try_solve(hand_cards, floor_groups, cross, timeout=3.0):
     """Try to solve with a timeout. Returns (solvable, groups, remaining_cross)."""
     import solver
@@ -49,7 +69,7 @@ def bot_turn(gs: GameState) -> BotMove:
 
     # 1. Try playing entire hand
     solvable, groups, remaining_cross = _try_solve(hand, floor, cross, timeout=3.0)
-    if solvable:
+    if solvable and _respects_cross_anchoring(groups, cross):
         cards_played = list(hand)
         new_floor = [list(g) for g in groups]
         steps = [f"Bot plays all {len(cards_played)} cards and wins!"]
@@ -76,7 +96,7 @@ def bot_turn(gs: GameState) -> BotMove:
             solvable, groups, remaining_cross = _try_solve(
                 subset, floor, cross, timeout=min(remaining, 2.0)
             )
-            if solvable:
+            if solvable and _respects_cross_anchoring(groups, cross):
                 cards_played = subset
                 new_floor = [list(g) for g in groups]
                 steps = [f"Bot plays {len(cards_played)} card(s)"]
