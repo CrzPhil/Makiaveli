@@ -547,9 +547,10 @@ async function endTurn() {
     return;
   }
 
-  // Build floor_groups from staging
+  // Build floor_groups from staging, excluding untouched cross singles
+  // (a cross group that's still just the original cross card stays as cross)
   const newFloor = staging
-    .filter(g => g.length > 0)
+    .filter(g => g.length > 0 && !(g.length === 1 && g[0]._crossSlot !== undefined))
     .map(g => g.map(c => c.code));
 
   try {
