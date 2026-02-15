@@ -39,6 +39,17 @@ def parse_card(text):
     return Card(rank, suit)
 
 
+def card_to_dict(card):
+    """Serialize a Card to a JSON-friendly dict."""
+    r = RANK_NAMES.get(card.rank, str(card.rank))
+    return {
+        "code": f"{r}{card.suit}",
+        "rank": card.rank,
+        "suit": card.suit,
+        "display": f"{r}{SUIT_SYMBOLS[card.suit]}",
+    }
+
+
 def format_group(group):
     """Format a group of cards for display, sorted sensibly."""
     if not group:

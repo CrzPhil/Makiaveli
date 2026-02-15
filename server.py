@@ -6,11 +6,14 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from card import parse_card, SUIT_SYMBOLS, RANK_NAMES
+from card import parse_card, card_to_dict
 from solver import solve_hand, is_valid_group, is_valid_set, is_valid_run
 from step_planner import plan_steps
 
+from game.api import router as game_router
+
 app = FastAPI()
+app.include_router(game_router)
 
 
 # ── Models ──────────────────────────────────────────────────────────────
@@ -23,18 +26,6 @@ class SolveRequest(BaseModel):
 
 class ValidateGroupRequest(BaseModel):
     cards: list[str]
-
-
-# ── Helpers ─────────────────────────────────────────────────────────────
-
-def card_to_dict(card):
-    r = RANK_NAMES.get(card.rank, str(card.rank))
-    return {
-        "code": f"{r}{card.suit}",
-        "rank": card.rank,
-        "suit": card.suit,
-        "display": f"{r}{SUIT_SYMBOLS[card.suit]}",
-    }
 
 
 # ── Endpoints ───────────────────────────────────────────────────────────
@@ -109,7 +100,8 @@ def api_validate_group(req: ValidateGroupRequest):
     }
 
 
-# Static files — must be last so it doesn't shadow /api routes
+# Static files — must be last so they don't shadow /api routes
+app.mount("/game", StaticFiles(directory="game/static", html=True), name="game-static")
 app.mount("/", StaticFiles(directory="static", html=True), name="static")
 
 if __name__ == "__main__":

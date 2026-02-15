@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Makiaveli</title>
+  <link rel="stylesheet" href="/game/game.css">
+</head>
+<body>
+  <header>
+    <h1>Makiaveli</h1>
+  </header>
+
+  <main>
+    <!-- Bot Area -->
+    <section id="bot-area">
+      <h2>Opponent</h2>
+      <div id="bot-info">
+        <span id="bot-card-count">Cards: 0</span>
+      </div>
+      <div id="bot-log"></div>
+    </section>
+
+    <!-- Table: Cross + Floor + Deck -->
+    <section id="table-area">
+      <h2>Table</h2>
+      <div id="cross-row">
+        <span class="label">Cross:</span>
+        <div id="cross-slots"></div>
+      </div>
+      <div id="floor-area">
+        <span class="label">Floor:</span>
+        <div id="floor-groups"></div>
+      </div>
+      <div id="deck-info">
+        <span class="label">Deck:</span>
+        <span id="deck-count">0</span> cards
+      </div>
+    </section>
+
+    <!-- Staging Area (play mode only) -->
+    <section id="staging-area" class="hidden">
+      <h2>Staging — Arrange Groups</h2>
+      <div id="staging-groups"></div>
+      <button id="add-group-btn" class="btn btn-small">+ New Group</button>
+      <div id="staging-selected">
+        <span class="label">Selected:</span>
+        <div id="selected-cards"></div>
+      </div>
+    </section>
+
+    <!-- Player Hand -->
+    <section id="hand-area">
+      <h2>Your Hand</h2>
+      <div id="hand-cards"></div>
+    </section>
+
+    <!-- Action Bar -->
+    <section id="action-bar">
+      <button id="btn-new" class="btn btn-accent">New Game</button>
+      <button id="btn-draw" class="btn" disabled>Draw</button>
+      <button id="btn-play-mode" class="btn" disabled>Play Mode</button>
+      <button id="btn-end-turn" class="btn btn-accent hidden">End Turn</button>
+      <button id="btn-cancel" class="btn hidden">Cancel</button>
+    </section>
+
+    <!-- Status -->
+    <div id="status-bar"></div>
+  </main>
+
+  <!-- Game Over Overlay -->
+  <div id="game-over-overlay" class="hidden">
+    <div id="game-over-box">
+      <h2 id="game-over-msg"></h2>
+      <button id="btn-play-again" class="btn btn-accent">Play Again</button>
+    </div>
+  </div>
+
+  <script src="/game/game.js"></script>
+</body>
+</html>
