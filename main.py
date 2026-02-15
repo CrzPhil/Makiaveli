@@ -1,427 +1,95 @@
-import random
-from copy import deepcopy
-import itertools
-
-
-class Card:
-    values = list(range(1, 14))
-    suits = ['H', 'C', 'S', 'D']
-
-    def __init__(self, value: int, suit: chr):
-        self.special_values = {1: 'A', 11: 'J', 12: 'Q', 13: 'K'}
-        self._value = value
-        self._suit = suit
-
-    def __str__(self):
-        if self.value in self.special_values.keys():
-            return f'{self.special_values[self.value]}{self._suit}'
-        return f"{self._value}{self._suit}"
-
-    def __repr__(self):
-        if self.value in self.special_values.keys():
-            return f'{self.special_values[self.value]}{self._suit}'
-        return f"{self._value}{self._suit}"
-
-    @property
-    def suit(self):
-        return self._suit
-
-    @property
-    def value(self):
-        return self._value
-
-
-class Deck:
-    def __init__(self):
-        self._cards = [Card(Card.values[i], suit) for i in range(13) for suit in Card.suits] * 2
-
-    @property
-    def cards(self):
-        return self._cards
-
-    def shuffle(self):
-        random.shuffle(self._cards)
-
-    def count(self):
-        return len(self._cards)
-
-    def draw(self):
-        if self.count() > 0:
-            return self._cards.pop()
-        else:
-            print("Tried to draw from an empty deck.")
-
-
-class Player:
-    def __init__(self, name):
-        self.name = name
-        self.hand = []
-
-    def __str__(self):
-        hand_str = ", ".join([str(card) for card in self.hand])
-        return f"{self.name}: {hand_str}"
-
-    def play(self):
-        pass
-
-    def show_hand(self):
-        print(self.__str__())
-
-    def remove_card_from_hand(self, card):
-        """
-        Pop a card from the player's hand.
-
-        :return: 1 -> Card doesn't exist.
-        :return: None -> All good.
-        """
-        for index, existing_card in enumerate(self.hand):
-            if existing_card.suit == card.suit and existing_card.value == card.value:
-                self.hand.pop(index)
-                return
-
-        return 1
-
-    def remove_cards_from_hand(self, combination):
-        """
-        Pop multiple cards from the player's hand.
-
-        :return: 1 -> One or more cards didn't exist.
-        :return: None -> All good.
-        """
-        for card in combination:
-            val = self.remove_card_from_hand(card)
-            if val:
-                return 1
-
-
-class Floor:
-    def __init__(self, deck):
-        """
-        Initialize floor using a deck.
-
-        Four cards are drawn and marked as the Anchor cards.
-        self.modifications ->   A dictionary marking the index of a combination and whether it has been modified or not.
-                                Using this we can skip over non-modified combinations since they will already have been validated previously.
-        """
-        # 4 initially anchored  cards
-        self.floor = [[deck.draw()] for i in range(4)]
-        # Index of achors and if they have been modified
-        self.modifications = {0: False,
-                              1: False,
-                              2: False,
-                              3: False}
-
-    def show(self):
-        """
-        Visualise the floor.
-        """
-        for i, combination in enumerate(self.floor):
-            print(f"{i + 1}: {', '.join(map(str, combination))}")
-
-    def get_floor(self):
-        """
-        Save the state before "casino". Can be restored if validation checks fail afterwards
-        """
-        return deepcopy(self.floor), self.modifications.copy()
-
-    def restore_floor(self, floor, modifications):
-        """
-        Restore saved state after "casino" fails.
-        """
-        self.floor = floor
-        self.modifications = modifications
-
-    def add_card_to_combination(self, card: Card, combination_index: int):
-        """
-        Add a card from the player's hand to an existing combination.
-
-        :return: 0 -> Invalid combination_index
-        :return: None -> All good, but not validated yet.
-        """
-        if 0 > combination_index or combination_index > len(self.floor):
-            print("Debug: Tried to add_card_to_combination() where combination_index is not in valid range.")
-            return 0
-
-        self.floor[combination_index].append(card)
-        self.modifications[combination_index] = True
-
-    def create_new_combination(self, combination: list):
-        """
-        Play a new combination on the floor. Can be partial, since a card may be moved to it afterwards.
-        """
-        self.floor.append(combination)
-        self.modifications[len(self.floor)-1] = True
-
-    def move(self, source_combination: int, card: Card, destination_combination: int):
-        """
-        Move a card from one combination to another.
-
-        :return: 0 -> Invalid indeces
-        :return: 1 -> Card not found in the source_combination
-        :return: None -> All good, but not validated yet.
-        """
-        if (0 > source_combination or source_combination > len(self.floor)) or (0 > destination_combination or destination_combination > len(self.floor)):
-            return 0
-
-        card_index = None
-        for index, existing_card in enumerate(self.floor[source_combination]):
-            if existing_card.suit == card.suit and existing_card.value == card.value:
-                card_index = index
-                break
-
-        if card_index is None:
-            return 1
-
-        tmp_card = self.floor[source_combination].pop(card_index)
-        self.floor[destination_combination].append(tmp_card)
-
-        self.modifications[source_combination] = True
-        self.modifications[destination_combination] = True
-
-    def play_is_valid(self, play: list):
-        """
-        Check a user's play to see whether it is valid
-        """
-        if len(play) >= 3:
-            # Check if all cards' suit is the same
-            if len(set([card.suit for card in play])) == 1:
-                if self.is_sorted(lst=[card.value for card in play], order='ascending'):
-                    return True
-
-            return False
-
-    def check_combination(self, combination: list):
-        """
-        Check a combination's validity.
-        """
-        if len(combination) < 3:
-            return False
-
-        # Sort cards by value, keeping suit information
-        sorted_cards = sorted(combination, key=lambda x: (x.value, x.suit))
-
-        # Check if cards have the same value with different suits
-        same_value = all(card.value == sorted_cards[0].value for card in sorted_cards)
-        unique_suits = len(set(card.suit for card in sorted_cards)) == len(sorted_cards)
-
-        if same_value and unique_suits:
-            return True
-
-        # Check if cards are in a consecutive sequence with the same suit
-        same_suit = all(card.suit == sorted_cards[0].suit for card in sorted_cards)
-        consecutive_values = all(sorted_cards[i].value == sorted_cards[i - 1].value + 1 for i in range(1, len(sorted_cards)))
-
-        if same_suit and consecutive_values:
-            return True
-
-        return False
-
-    def is_valid(self):
-        """
-        Run after a play to verify that the floor is in a valid state before proceeding.
-        """
-        modified_combinations = [combination for combination, modified in self.modifications.items() if modified]
-
-        if len(modified_combinations) == 0:
-            print("Debug: nothing was modified.")
-            return True
-
-        # There are always at least 4 anchored cards on the floor
-        if len(self.floor) < 4:
-            return False
-        
-        # Check if all combinations in the rest of the floor (excluding anchors) contain >=3 cards
-        #        print(f"Len floor: {len(self.floor)}")
-        #        print(f"Len modified_combinations: {len(modified_combinations)}")
-        #        print("Modified combos:")
-        #        print(modified_combinations)
-        #        print("Modification dict:")
-        #        print(self.modifications)
-        if any(len(self.floor[combination_index]) < 3 for combination_index in modified_combinations):
-            return False
-
-        # Check combinations
-        if any(not self.check_combination(self.floor[combination_index]) for combination_index in modified_combinations):
-            return False
-
-        return True
-
-
-class Game:
-    def __init__(self, player_count):
-        self.deck = Deck()
-        self.floor = None
-        self.players = [Player(i) for i in range(1, player_count+1)]
-        self.current_player_index = 0
-        self.game_over = False
-
-    def setup(self):
-        """
-        Shuffle the deck and deal five cards to each player, as well as four anchored cards
-        """
-        self.deck.shuffle()
-
-        # Deal cards
-        for player in self.players:
-            for i in range(5):
-                player.hand.append(self.deck.draw())
-        
-        # Initialize floor and deal anchored cards
-        self.floor = Floor(self.deck)
-
-    def enumerate_sub_actions(self, player):
-        """
-        Find all possible actions a player can do.
-
-        Checks for combinations on-hand, checks for valid combinations on the floor, checks for single-card laydowns. 
-        :return: array of sub_actions a player can perform.
-        """
-        sub_actions = []
-
-        # Enumerate possible combinations in player's hand
-        for length in range(3, len(player.hand) + 1):
-            for combination in itertools.combinations(player.hand, length):
-                if self.floor.check_combination(list(combination)):
-                    sub_actions.append(('create_new_combination', combination))
-
-        # Enumerate possible cards to add to existing combinations
-        for card in player.hand:
-            for i in range(len(self.floor.floor)):
-                sub_actions.append(('add_card_to_combination', card, i))
-    
-        # Enumerate possible card moves between combinations
-        for i, source_combination in enumerate(self.floor.floor):
-            for j, destination_combination in enumerate(self.floor.floor):
-                if i != j:
-                    for card in source_combination:
-                        sub_actions.append(('move', i, card, j))
-
-        return sub_actions
-
-    def generate_sub_action_sequences(self, sub_actions, max_depth=3):
-        """
-        Create an array of sequences of sub_actions.
-        """
-        all_sequences = list(itertools.product(sub_actions, repeat=max_depth))
-        valid_sequences = []
-    
-        for sequence in all_sequences:
-            used_cards = set()
-            valid_sequence = True
-    
-            for action, *args in sequence:
-                if action == 'create_new_combination':
-                    combination = list(args[0])
-    
-                    # Check if any card in the combination is already used
-                    for card in combination:
-                        if card in used_cards:
-                            valid_sequence = False
-                            break
-    
-                    # If the sequence is still valid, update used cards
-                    if valid_sequence:
-                        used_cards.update(combination)
-                    else:
-                        break
-    
-                elif action == 'add_card_to_combination':
-                    card, _ = args
-    
-                    # Check if the card is already used
-                    if card in used_cards:
-                        valid_sequence = False
-                        break
-    
-                    # If the sequence is still valid, update used cards
-                    if valid_sequence:
-                        used_cards.add(card)
-                    else:
-                        break
-    
-            if valid_sequence:
-                valid_sequences.append(sequence)
-    
-        return valid_sequences
-
-    def validate_and_apply_sub_action_sequence(self, player, sub_action_sequence):
-        """
-        Iterate through list of sub_actions and check whether they produce valid configurations.
-    
-        Saves floor and player-hand state, restoring them afterwards if the play was invalid.
-        :return: tuple (is_valid, longest_valid_subsequence) -> Whether floor is valid and the longest valid subsequence of actions.
-        """
-        longest_valid_subsequence = []
-    
-        for i in range(len(sub_action_sequence)):
-            for j in range(i, len(sub_action_sequence)):
-                current_subsequence = sub_action_sequence[i:j + 1]
-    
-                # Save initial game state
-                initial_floor, initial_modifications = self.floor.get_floor()
-                initial_hand = player.hand.copy()
-    
-                for action, *args in current_subsequence:
-                    if action == 'create_new_combination':
-                        combination = list(args[0])
-                        player.remove_cards_from_hand(combination)
-                        self.floor.create_new_combination(combination)
-    
-                    elif action == 'add_card_to_combination':
-                        card, combination_index = args
-                        player.remove_card_from_hand(card)
-                        self.floor.add_card_to_combination(card, combination_index)
-    
-                    elif action == 'move':
-                        source_combination, card, destination_combination = args
-                        self.floor.move(source_combination, card, destination_combination)
-    
-                is_valid = self.floor.is_valid()
-    
-                # Restore initial game state
-                self.floor.restore_floor(initial_floor, initial_modifications)
-                player.hand = initial_hand
-    
-                if is_valid and len(current_subsequence) > len(longest_valid_subsequence):
-                    longest_valid_subsequence = current_subsequence
-    
-        return bool(longest_valid_subsequence), longest_valid_subsequence
-
-
-    def end_turn(self):
-        """
-        Finish turn and move to next player.
-        """
-        self.current_player_index = ((self.current_player_index + 1) % (len(self.players) + 1)) + 1 
-
-    def integrity_check(self):
-        """
-        Check if any new cards have appeared or have been removed.
-        """
-        card_count = 0
-        for combination in self.floor.floor:
-            card_count += len(combination)
-        for player in self.players:
-            card_count += len(player.hand)
-        
-        return card_count == 104
-
-    def play(self):
-        """
-        Main function starting the game cycle.
-        To be called *after* setup() function.
-        """
-        while not self.game_over:
-            current_player = self.players[self.current_player_index]
-
-            # Show floor and player hand
-            self.floor.show()
-            self.player.show_hand()
-
-            # Choose action (draw or play)
-
-            # If play, save the floor's state
-            floor, modifications = self.floor.get_floor()
-
-            self.end_turn()
-
+#!/usr/bin/env python3
+"""
+Makiaveli Solver — CLI entry point.
+
+Usage:
+    python main.py
+
+Interactively enter your hand and the current floor state, and the solver
+will determine if you can empty your hand and show you the steps.
+"""
+
+from card import parse_card, format_group
+from solver import solve_hand, verify_solution
+from step_planner import plan_steps
+
+
+def read_cards(prompt):
+    """Read a space-separated list of cards from stdin."""
+    raw = input(prompt).strip()
+    if not raw:
+        return []
+    return [parse_card(tok) for tok in raw.split()]
+
+
+def read_floor():
+    """Read floor groups, one group per line, blank line to finish."""
+    print("Enter floor groups (one group per line, blank line to finish):")
+    groups = []
+    while True:
+        raw = input("  > ").strip()
+        if not raw:
+            break
+        group = [parse_card(tok) for tok in raw.split()]
+        groups.append(group)
+    return groups
+
+
+def display_state(hand, floor_groups):
+    """Pretty-print the current game state."""
+    print("\n--- Current State ---")
+    print(f"Hand: {', '.join(str(c) for c in hand)}")
+    print("Floor:")
+    if not floor_groups:
+        print("  (empty)")
+    for i, group in enumerate(floor_groups):
+        print(f"  [{i}] {format_group(group)}")
+    print()
+
+
+def main():
+    print("=== Makiaveli Solver ===\n")
+
+    hand = read_cards("Enter your hand (e.g. '3S 4S 7D'): ")
+    floor_groups = read_floor()
+
+    display_state(hand, floor_groups)
+
+    if not hand:
+        print("Hand is empty — you've already won!")
+        return
+
+    print("Solving...\n")
+    solvable, target_groups = solve_hand(hand, floor_groups)
+
+    if not solvable:
+        print("No solution found. You cannot empty your hand from this state.")
+        return
+
+    # Verify the solution is correct
+    all_cards = list(hand)
+    for g in floor_groups:
+        all_cards.extend(g)
+    valid, msg = verify_solution(all_cards, target_groups)
+    if not valid:
+        print(f"Internal error: solver produced invalid result ({msg})")
+        return
+
+    # Show target layout
+    print("Solution found!\n")
+    print("Target layout:")
+    for i, group in enumerate(target_groups):
+        print(f"  [{i}] {format_group(list(group))}")
+
+    # Show steps
+    steps = plan_steps(floor_groups, target_groups, hand)
+    if steps:
+        print(f"\nSteps ({len(steps)}):")
+        for i, step in enumerate(steps, 1):
+            print(f"  {i}. {step}")
+    else:
+        print("\nNo rearrangement needed — just play your cards!")
+
+
+if __name__ == '__main__':
+    main()
